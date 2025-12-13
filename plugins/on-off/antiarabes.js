@@ -1,70 +1,46 @@
-import fetch from 'node-fetch'
-import { sticker } from '../lib/sticker.js'
+import { getConfig } from '../../db/index.js'
 
-let handler = m => m
-
-handler.all = async function (m, { conn }) {
-  let chat = global.db.data.chats[m.chat]
-  if (!chat || chat.isBanned || !chat.autoresponder) return true
-  if (m.fromMe) return true
-
-  m.isBot = (
-    m.id?.startsWith('BAE5') && m.id.length === 16 ||
-    m.id?.startsWith('3EB0') && [12,20,22].includes(m.id.length) ||
-    m.id?.startsWith('B24E') && m.id.length === 20
-  )
-  if (m.isBot) return true
-
-  let text = (m.text || '').trim()
-  if (!text) return true
-
-  let prefixRegex = new RegExp('^[' + (opts?.prefix || '‎z/i!#$%+£¢€¥^°=¶∆×÷π√✓©®:;?&.,\\-')
-    .replace(/[|\\{}()[\]^$+*?.\-\^]/g, '\\$&') + ']')
-  if (prefixRegex.test(text)) return true
-
-  if (m.sender?.toLowerCase().includes('bot')) return true
-
-  const botJid = this.user.jid
-
-  const isReplyToBot =
-    m.quoted &&
-    (m.quoted.sender === botJid || m.quoted.fromMe)
-
-  const isMentionBot =
-    m.mentionedJid &&
-    m.mentionedJid.includes(botJid)
-
-  const isCallingBot =
-    /\b(bot|angel bot|ángel bot)\b/i.test(text)
-
-  if (!(isReplyToBot || isMentionBot || isCallingBot)) return true
-
-  await this.sendPresenceUpdate('composing', m.chat)
-
-  let username = m.pushName || 'Usuario'
-
-  let txtDefault = `
-Eres ${botname}, una inteligencia artificial avanzada creada por ${etiqueta} para WhatsApp.
-Responde de forma clara, natural y amigable.
-`.trim()
-
-  let logic = chat.sAutoresponder || txtDefault
-
+const handler = async (m, { conn }) => {
   try {
-    const apiUrl = `https://gemini.google.com/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate?bl=boq_assistant-bard-web-server_20250729.06_p0&f.sid=4206607810970164620&hl=en-US&_reqid=2813378&rt=c`
-    const res = await fetch(apiUrl)
-    const data = await res.json()
+    // Solo grupos
+    if (!m.isGroup) return
 
-    let result = data.result || data.answer || data.response
-    if (!result) return true
+    // ChatGPT activado?
+    const enabled = getConfig(m.chat, 'chatgpt')
+    if (!enabled) return
 
-    await this.reply(m.chat, result.trim(), m, rcanal)
+    // Debe ser respuesta a un mensaje
+    const ctx = m.message?.extendedTextMessage?.contextInfo
+    if (!ctx?.quotedMessage) return
+
+    // El mensaje citado debe ser del bot
+    const quotedFrom = ctx.participant || ctx.remoteJid
+    const botJid = conn.user.id
+
+    if (!quotedFrom || !quotedFrom.includes(botJid.split('@')[0])) return
+
+    // Texto del usuario
+    const text =
+      m.message?.conversation ||
+      m.message?.extendedTextMessage?.text ||
+      ''
+
+    if (!text.trim()) return
+
+    // 🔹 AQUÍ VA TU IA / CHATGPT
+    // Ejemplo simple:
+    const reply = `🤖 Dijiste:\n${text}`
+
+    await conn.sendMessage(
+      m.chat,
+      { text: reply },
+      { quoted: m }
+    )
+
   } catch (e) {
-    console.error(e)
-    await this.reply(m.chat, '⚠️ Error al responder con la IA.', m)
+    console.error('[chat-reply]', e)
   }
-
-  return true
 }
 
+handler.all = true
 export default handler
