@@ -20,7 +20,7 @@ var handler = async (m, { conn }) => {
     `${emoji2} Iniciando limpieza completa de sesiones (excepto creds.json)...`,
     m
   )
-  await m.react(rwait)
+  //await m.react(rwait)
 
   if (!fs.existsSync(sessionPath)) {
     return conn.reply(
@@ -49,7 +49,7 @@ var handler = async (m, { conn }) => {
       eliminados++
     }
 
-    await m.react(done)
+    //await m.react(done)
 
     if (eliminados === 0) {
       return conn.reply(
