@@ -102,9 +102,9 @@ if (opts?.debug) console.error(e)
 }
 const user = global.db.data.users[m.sender]
 try {
-const actual = user.name || ""
-const nuevo = m.pushName || await this.getName(m.sender)
-if (typeof nuevo === "string" && nuevo.trim() && nuevo !== actual) user.name = nuevo
+  const actual = user.name || ""
+  const nuevo = m.pushName || await this.getName(m.sender)
+  if (typeof nuevo === "string" && nuevo.trim() && nuevo !== actual) user.name = nuevo
 } catch (e) {}
 const chat = global.db.data.chats[m.chat]
 const settings = global.db.data.settings[this.user.jid]
