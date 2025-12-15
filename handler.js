@@ -7,6 +7,11 @@ import chalk from "chalk"
 import fetch from "node-fetch"
 import ws from "ws"
 
+const ___dirname = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "plugins"
+)
+
 const strRegex = str => str.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&")
 
 const isNumber = x => typeof x === "number" && !isNaN(x)
@@ -157,7 +162,6 @@ botGroup = botParticipant || {}
 console.error(e)
 }
 }
-const ___dirname = path.join(path.dirname(fileURLToPath(import.meta.url)), "plugins")
 for (const name in global.plugins) {
 const plugin = global.plugins[name]
 if (!plugin) continue
