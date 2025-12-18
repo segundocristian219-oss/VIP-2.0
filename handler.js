@@ -8,12 +8,7 @@ import fetch from "node-fetch"
 import ws from "ws"
 
 const strRegex = str => str.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&")
-
-const ___dirname = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "plugins"
-)
-
+const ___dirname = path.join(path.dirname(fileURLToPath(import.meta.url)), "plugins")
 const isNumber = x => typeof x === "number" && !isNaN(x)
 const delay = ms => isNumber(ms) && new Promise(r => setTimeout(r, ms))
 
@@ -145,22 +140,19 @@ export async function handler(chatUpdate) {
     let isAdmin = false
     let isBotAdmin = false
 
-    if (m.isGroup) {
+    if (m.isGroup && (isCommand || m.mentionedJid?.length)) {
       try {
         global.groupCache ||= new Map()
-        const cached = global.groupCache.get(m.chat)
-        if (cached && Date.now() - cached.time < 60000) {
-          groupMetadata = cached.data
-        } else {
-          groupMetadata = await this.groupMetadata(m.chat)
-          global.groupCache.set(m.chat, { data: groupMetadata, time: Date.now() })
-          if (global.groupCache.size > 200) {
-            const firstKey = global.groupCache.keys().next().value
-            global.groupCache.delete(firstKey)
-          }
+        let cached = global.groupCache.get(m.chat)
+
+        if (!cached || (Date.now() - cached.time > 15000)) {
+          cached = { data: await this.groupMetadata(m.chat), time: Date.now() }
+          global.groupCache.set(m.chat, cached)
         }
 
+        groupMetadata = cached.data
         participants = groupMetadata.participants || []
+
         const userParticipant = participants.find(p => p.id === m.sender)
         isRAdmin = userParticipant?.admin === "superadmin" || m.sender === groupMetadata.owner
         isAdmin = isRAdmin || userParticipant?.admin === "admin"
@@ -170,13 +162,6 @@ export async function handler(chatUpdate) {
 
         userGroup = userParticipant || {}
         botGroup = botParticipant || {}
-
-        if (m.action === "remove" || m.action === "leave") {
-          const removedJid = m.participants?.[0]
-          if (removedJid && removedJid === this.user.jid) {
-            global.groupCache.delete(m.chat)
-          }
-        }
       } catch (e) {
         console.error(e)
       }
@@ -276,44 +261,44 @@ export async function handler(chatUpdate) {
         if (!isAccept) continue
 
         const adminMode = chat.modoadmin || false
-const wa = plugin.botAdmin || plugin.admin || plugin.group || plugin.private
+        const wa = plugin.botAdmin || plugin.admin || plugin.group || plugin.private
 
-if (adminMode && m.isGroup && !isAdmin && !isOwner && wa) return
+        if (adminMode && m.isGroup && !isAdmin && !isOwner && wa) return
 
-if (plugin.rowner && !isROwner) {
-  fail("rowner", m, this)
-  continue
-}
+        if (plugin.rowner && !isROwner) {
+          fail("rowner", m, this)
+          continue
+        }
 
-if (plugin.owner && !isOwner) {
-  fail("owner", m, this)
-  continue
-}
+        if (plugin.owner && !isOwner) {
+          fail("owner", m, this)
+          continue
+        }
 
-if (plugin.premium && !isPrems) {
-  fail("premium", m, this)
-  continue
-}
+        if (plugin.premium && !isPrems) {
+          fail("premium", m, this)
+          continue
+        }
 
-if (plugin.group && !m.isGroup) {
-  fail("group", m, this)
-  continue
-}
+        if (plugin.group && !m.isGroup) {
+          fail("group", m, this)
+          continue
+        }
 
-if (plugin.botAdmin && !isBotAdmin) {
-  fail("botAdmin", m, this)
-  continue
-}
+        if (plugin.botAdmin && !isBotAdmin) {
+          fail("botAdmin", m, this)
+          continue
+        }
 
-if (plugin.admin && !isAdmin) {
-  fail("admin", m, this)
-  continue
-}
+        if (plugin.admin && !isAdmin) {
+          fail("admin", m, this)
+          continue
+        }
 
-if (plugin.private && m.isGroup) {
-  fail("private", m, this)
-  continue
-}
+        if (plugin.private && m.isGroup) {
+          fail("private", m, this)
+          continue
+        }
 
         m.plugin = name
 
@@ -368,17 +353,24 @@ if (plugin.private && m.isGroup) {
   }
 }
 
+// Listener para limpiar cache cuando alguien sale/entra o cambian admins
+export function initGroupListener(conn) {
+  conn.ev.on('group-participants.update', update => {
+    if (global.groupCache?.has(update.id)) global.groupCache.delete(update.id)
+  })
+}
+
 global.dfail = (type, m, conn) => {
   const msg = {
     rowner: `*𝖤𝗌𝗍𝖾 𝖢𝗈𝗆𝖺𝗇𝖽𝗈 𝖲𝗈𝗅𝗈 𝖯𝗎𝖾𝖽𝖾 𝖲𝖾𝗋 𝖴𝗌𝖺𝖽𝗈 𝖯𝗈𝗋 𝖬𝗂 𝖢𝗋𝖾𝖺𝖽𝗈𝗋*`,
     owner: `*𝖤𝗌𝗍𝖾 𝖢𝗈𝗆𝖺𝖽𝗈 𝖲𝗈𝗅𝗈 𝖯𝗎𝖾𝖽𝖾 𝖲𝖾𝗋 𝖴𝗍𝗂𝗅𝗂𝗓𝖺𝖽𝗈 𝖯𝗈𝗋 𝖬𝗂 𝖢𝗋𝖾𝖺𝖽𝗈𝗋*`,
-    mods: `*𝖤𝗌𝗍𝖾 𝖢𝗈𝗆𝖺𝗇𝖽𝗈 𝖲𝗈𝗅𝗈 𝖯𝗎𝖾𝖽𝖾 𝖲𝖾𝗋 𝖴𝗌𝖺𝗋 𝖽𝖾𝗌𝖺𝗋𝗋𝗈𝗅𝗅𝖺𝖽𝗈𝗋𝖾𝗌 𝖮𝖿𝗂𝖼𝗂𝖺𝗅𝖾𝗌*`,
+    mods: `*𝖤𝗌𝗍𝖾 𝖢𝗈𝗆𝖺𝗇𝖽𝗈 𝖲𝗈𝗅𝗈 𝖯𝗎𝖾𝖽𝖾 𝖲𝖾𝗋 𝖴𝗌𝖺𝗋 𝖽𝖾𝗌𝖺𝗋𝗋𝗈𝗅𝗅𝖺𝖽𝗈𝗋𝖾𝗌 𝖮𝖿𝗂𝖼𝗂𝗮𝗅𝖾𝗌*`,
     premium: `*𝖤𝗌𝗍𝖾 𝖢𝗈𝗆𝖺𝗇𝖽𝗈 𝖲𝗈𝗅𝗈 𝖫𝗈 𝖯𝗎𝖾𝖽𝖾𝗇 𝖴𝗍𝗂𝗅𝗂𝗓𝖺𝗋 𝖴𝗌𝗎𝖺𝗋𝗂𝗈𝗌 𝖯𝗋𝖾𝗆𝗂𝗎𝗆*`,
     group: `*𝖤𝗌𝗍𝖾 𝖢𝗈𝗆𝖺𝗇𝖽𝗈 𝖲𝗈𝗅𝗈 𝖥𝗎𝗇𝖼𝗂𝗈𝗇𝖺 𝖤𝗇 𝖦𝗋𝗎𝗉𝗈𝗌*`,
     private: `*𝖤𝗌𝗍𝖾 𝖢𝗈𝗆𝖺𝗇𝖽𝗈 𝖲𝗈𝗅𝗈 𝖲𝖾 𝖯𝗎𝖾𝖽𝖾 𝖮𝖼𝗎𝗉𝖺𝗋 𝖤𝗇 𝖤𝗅 𝖯𝗋𝗂𝗏𝖺𝖽𝗈 𝖣𝖾𝗅 𝖡𝗈𝗍*`,
     admin: `*𝖤𝗌𝗍𝖾 𝖢𝗈𝗆𝖺𝗇𝖽𝗈 𝖲𝗈𝗅𝗈 𝖯𝗎𝖾𝖽𝖾 𝖲𝖾𝗋 𝖴𝗌𝖺𝖽𝗈 𝖯𝗈𝗋 𝖠𝖽𝗆𝗂𝗇𝗂𝗌𝗍𝗋𝖺𝖽𝗈𝗋𝖾𝗌*`,
     botAdmin: `*𝖭𝖾𝖼𝖾𝗌𝗂𝗍𝗈 𝗌𝖾𝗋 𝖠𝖽𝗆𝗂𝗇 𝖯𝖺𝗋𝖺 𝖴𝗌𝖺𝗋 𝖤𝗌𝗍𝖾 𝖢𝗈𝗆𝖺𝗇𝖽𝗈*`,
-    unreg: `*𝖭𝗈 𝖤𝗌𝗍𝖺𝗌 𝖱𝖾𝗀𝗂𝗌𝗍𝗋𝖺𝖽𝗈, 𝖴𝗌𝖺 .𝗋𝖾𝗀 (𝗇𝖺𝗆𝖾) 19*`,
+    unreg: `*𝖭𝗈 𝖤𝗌𝖺𝗌 𝖱𝖾𝗀𝗂𝗌𝗍𝗋𝖺𝖽𝗈, 𝖴𝗌𝖺 .𝗋𝖾𝗀 (𝗇𝖺𝗆𝖾) 19*`,
     restrict: `*𝖤𝗌𝗍𝖾 𝖢𝗈𝗆𝖺𝗇𝖽𝗈 𝖠𝗁 𝖲𝗂𝖽𝗈 𝖣𝖾𝗌𝖺𝖻𝗂𝗅𝗂𝗍𝖺𝖽𝗈 𝖯𝗈𝗋 𝖬𝗂 𝖢𝗋𝖾𝖺𝖽𝗈𝗋*`
   }[type]
 
