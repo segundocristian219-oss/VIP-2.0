@@ -206,7 +206,4 @@ module.exports = async (msg, { conn, args, command }) => {
   }
 };
 
-module.exports.command = ["spotify", "sp"];
-module.exports.help = ["spotify <canción o url>", "sp <canción o url>"];
-module.exports.tags = ["descargas"];
-module.exports.register = true;
+handler.command = ["sp"]
