@@ -4,7 +4,7 @@ import axios from "axios";
 import fetch from "node-fetch";
 
 const API_BASE = (process.env.API_BASE || "https://api-sky.ultraplus.click").replace(/\/+$/, "");
-const API_KEY = process.env.API_KEY || "Russellxz";
+const API_KEY = process.env.API_KEY || "Angxllll";
 const MAX_TIMEOUT = 30000;
 
 let thumb = null;
