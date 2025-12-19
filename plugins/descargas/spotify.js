@@ -1,10 +1,11 @@
+"use strict";
+
 import axios from "axios";
 
 const API_BASE = (process.env.API_BASE || "https://api-sky.ultraplus.click").replace(/\/+$/, "");
-const API_KEY  = process.env.API_KEY || "Russellxz";
+const API_KEY = process.env.API_KEY || "Russellxz";
 const MAX_TIMEOUT = 30000;
 
-// Jobs pendientes por ID del mensaje preview
 const pendingSPOTIFY = Object.create(null);
 
 async function react(conn, chatId, key, emoji) {
@@ -17,47 +18,54 @@ async function getSpotifyMp3(input) {
   const isUrl = /spotify\.com/i.test(input);
   const body = isUrl ? { url: input } : { query: input };
 
-  const { data: res, status: http } = await axios.post(endpoint, body, {
-    headers: {
-      apikey: API_KEY,
-      Authorization: `Bearer ${API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    timeout: MAX_TIMEOUT,
-    validateStatus: () => true,
-  });
+  const { data, status } = await axios.post(
+    endpoint,
+    body,
+    {
+      headers: {
+        apikey: API_KEY,
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      timeout: MAX_TIMEOUT,
+      validateStatus: () => true
+    }
+  );
 
-  let data = res;
-  if (typeof data === "string") {
-    try { data = JSON.parse(data.trim()); } catch { throw new Error("Respuesta no JSON del servidor"); }
+  let res = data;
+  if (typeof res === "string") {
+    try { res = JSON.parse(res.trim()); } catch { throw new Error("Respuesta inválida del servidor"); }
   }
 
-  const ok = data?.status === true || data?.status === "true";
-  if (!ok) throw new Error(data?.message || data?.error || `HTTP ${http}`);
+  if (!(res?.status === true || res?.status === "true")) {
+    throw new Error(res?.message || res?.error || `HTTP ${status}`);
+  }
 
-  const mp3Url = data.result?.media?.audio;
-  if (!mp3Url) throw new Error("No se encontró el MP3");
+  const result = res.result || {};
+  if (!result?.media?.audio) throw new Error("No se encontró el audio");
 
-  const title = data.result?.title || "Spotify Track";
-  const artist = data.result?.artist || "Desconocido";
-  const image = data.result?.image || null;
+  return {
+    mp3Url: result.media.audio,
+    title: result.title || "Spotify Track",
+    artist: result.artist || "Desconocido",
+    image: result.image || result.thumbnail || null
+  };
+}
 
-  return { mp3Url, title, artist, image };
+function safeBaseFromTitle(title) {
+  return String(title || "spotify")
+    .slice(0, 70)
+    .replace(/[^A-Za-z0-9_-.]+/g, "_");
 }
 
 async function sendAudio(conn, job, asDocument, triggerMsg) {
-  const { chatId, mp3Url, title, artist, previewKey, quotedBase, image } = job;
+  const { chatId, mp3Url, title, artist, previewKey, quotedBase } = job;
 
   try {
     await react(conn, chatId, triggerMsg.key, asDocument ? "📁" : "🎵");
     await react(conn, chatId, previewKey, "⏳");
 
-    // enviar imagen si existe
-    if (image) {
-      await conn.sendMessage(chatId, { image: { url: image }, caption: `🎵 ${title}\n🎤 ${artist}` }, { quoted: quotedBase || triggerMsg });
-    }
-
-    const caption = asDocument ? undefined : `🎵 ${title}\n🎤 ${artist}`;
+    const caption = asDocument ? undefined : `${title}\npor ${artist}`;
 
     await conn.sendMessage(
       chatId,
@@ -65,13 +73,14 @@ async function sendAudio(conn, job, asDocument, triggerMsg) {
         [asDocument ? "document" : "audio"]: { url: mp3Url },
         mimetype: "audio/mpeg",
         fileName: asDocument ? `${safeBaseFromTitle(title)} - ${artist}.mp3` : undefined,
-        caption,
+        caption
       },
       { quoted: quotedBase || triggerMsg }
     );
 
     await react(conn, chatId, previewKey, "✅");
     await react(conn, chatId, triggerMsg.key, "✅");
+
   } catch (e) {
     await react(conn, chatId, previewKey, "❌");
     await react(conn, chatId, triggerMsg.key, "❌");
@@ -83,19 +92,16 @@ async function sendAudio(conn, job, asDocument, triggerMsg) {
   }
 }
 
-function safeBaseFromTitle(title) {
-  return String(title || "spotify").slice(0, 70).replace(/[^A-Za-z0-9_\-.]+/g, "_");
-}
-
-const handler = async (m, { conn, args }) => {
+const handler = async (m, { conn, args, usedPrefix }) => {
   const chatId = m.key.remoteJid;
-  const pref = global.prefixes?.[0] || ".";
   const text = (args.join(" ") || "").trim();
 
   if (!text) {
     return conn.sendMessage(
       chatId,
-      { text: `✳️ Usa:\n${pref}sp <canción o URL>\n\nEjemplo:\n${pref}sp bad bunny tití me preguntó` },
+      {
+        text: `✳️ Usa:\n${usedPrefix}sp <canción o URL>\n\nEjemplo:\n${usedPrefix}sp bad bunny tití me preguntó`
+      },
       { quoted: m }
     );
   }
@@ -105,9 +111,25 @@ const handler = async (m, { conn, args }) => {
 
     const { mp3Url, title, artist, image } = await getSpotifyMp3(text);
 
-    const caption = `🎵 Spotify — opciones
+    if (image) {
+      await conn.sendMessage(
+        chatId,
+        {
+          image: { url: image },
+          caption:
+`🎵 *Spotify*
 
-👍 Enviar audio (reproducible)
+✦ *Título:* ${title}
+✦ *Artista:* ${artist}`
+        },
+        { quoted: m }
+      );
+    }
+
+    const caption =
+`🎵 Spotify — opciones
+
+👍 Enviar audio
 ❤️ Enviar como documento
 — o responde: 1 = audio · 2 = documento
 
@@ -121,77 +143,73 @@ const handler = async (m, { conn, args }) => {
       mp3Url,
       title,
       artist,
-      image,
       quotedBase: m,
       previewKey: preview.key,
       createdAt: Date.now(),
-      processing: false,
+      processing: false
     };
 
     await react(conn, chatId, m.key, "✅");
 
-    if (!conn._spotifyInteractiveListener) {
-      conn._spotifyInteractiveListener = true;
+    if (!conn._spotifyListener) {
+      conn._spotifyListener = true;
 
-      conn.ev.on("messages.upsert", async (ev) => {
-        for (const msg of ev.messages) {
+      conn.ev.on("messages.upsert", async ({ messages }) => {
+        for (const msg of messages) {
           try {
-            // limpiar jobs viejos (15 min)
             for (const k of Object.keys(pendingSPOTIFY)) {
-              if (Date.now() - (pendingSPOTIFY[k]?.createdAt || 0) > 15 * 60 * 1000) delete pendingSPOTIFY[k];
+              if (Date.now() - pendingSPOTIFY[k].createdAt > 15 * 60 * 1000) {
+                delete pendingSPOTIFY[k];
+              }
             }
 
-            // --- Reacciones (👍 / ❤️) al preview ---
             if (msg.message?.reactionMessage) {
-              const { key: reactKey, text: emoji } = msg.message.reactionMessage;
-              const job = pendingSPOTIFY[reactKey.id];
-              if (!job || job.chatId !== msg.key.remoteJid) continue;
+              const { key, text: emoji } = msg.message.reactionMessage;
+              const job = pendingSPOTIFY[key.id];
+              if (!job || job.processing) continue;
+              if (job.chatId !== msg.key.remoteJid) continue;
               if (emoji !== "👍" && emoji !== "❤️") continue;
-              if (job.processing) continue;
-              job.processing = true;
 
-              const asDoc = emoji === "❤️";
-              await sendAudio(conn, job, asDoc, msg);
-              delete pendingSPOTIFY[reactKey.id];
+              job.processing = true;
+              await sendAudio(conn, job, emoji === "❤️", msg);
+              delete pendingSPOTIFY[key.id];
+              continue;
             }
 
-            // --- Replies 1/2 citando el preview ---
             const ctx = msg.message?.extendedTextMessage?.contextInfo;
             const replyTo = ctx?.stanzaId;
-
-            const body = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || "").trim();
+            const body =
+              (msg.message?.conversation ||
+               msg.message?.extendedTextMessage?.text ||
+               "").trim();
 
             if (replyTo && pendingSPOTIFY[replyTo]) {
               const job = pendingSPOTIFY[replyTo];
+              if (job.processing) continue;
               if (job.chatId !== msg.key.remoteJid) continue;
               if (body !== "1" && body !== "2") continue;
-              if (job.processing) continue;
-              job.processing = true;
 
-              const asDoc = body === "2";
-              await sendAudio(conn, job, asDoc, msg);
+              job.processing = true;
+              await sendAudio(conn, job, body === "2", msg);
               delete pendingSPOTIFY[replyTo];
             }
-          } catch (e) {
-            console.error("Spotify listener error:", e?.message || e);
-          }
+          } catch {}
         }
       });
     }
 
-  } catch (err) {
-    console.error("❌ Error spotify:", err?.message || err);
-    let msgTxt = "❌ Ocurrió un error al procesar la canción de Spotify.";
-    const s = String(err?.message || "");
-    if (/api key|unauthorized|forbidden|401/i.test(s)) msgTxt = "🔐 API Key inválida o ausente.";
-    else if (/timeout|timed out|502|upstream/i.test(s)) msgTxt = "⚠️ Timeout o error del servidor.";
-
-    await conn.sendMessage(chatId, { text: msgTxt }, { quoted: m });
+  } catch (e) {
     await react(conn, chatId, m.key, "❌");
+    await conn.sendMessage(
+      chatId,
+      { text: "❌ Error al procesar Spotify." },
+      { quoted: m }
+    );
   }
 };
 
 handler.command = ["spotify", "sp"];
 handler.help = ["spotify <canción o url>"];
 handler.tags = ["descargas"];
+
 export default handler;
