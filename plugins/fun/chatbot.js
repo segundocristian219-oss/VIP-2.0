@@ -1,9 +1,9 @@
 import fetch from 'node-fetch'
 
 const ALLOWED_MENTIONS = [
-  '5215911153853@s.whatsapp.net',
-  '25856038715509@lid',
-  '5215911153853'
+  '5218341602260@s.whatsapp.net',
+  '243332009717800@lid',
+  '5218341602260'
 ]
 
 const gemini = {
@@ -84,7 +84,7 @@ let handler = async (m, { conn }) => {
   }
 
 const prompt = `
-Eres Angel Bot, un asistente maso menos serio  y burlón. 
+Eres VIP BOT, un asistente maso menos serio  y burlón. 
 - Si el mensaje contiene cualquier tipo de groserías, responde de igual manera, usa cualquier tipo de groserías las que sean insulta también a su mamá, cuando respondas habla como un pandillero lo haría, no uses palabras elegantes, y también cuando hables igual habla con groserías de este tipo; "puto", "pendejo" "puta", "putita", todo ese tipo de groserías.
 - Si el mensaje no contiene groserías, responde de forma amistosa, ingeniosa y entretenida. 
 - Si el usuario pregunta "quién te creó" o algo similar, responde: "Por Angel, el mejor UwU".
