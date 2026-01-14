@@ -47,8 +47,8 @@ const handler = async (m, { conn }) => {
   ৎ٠࣪⭑🎮𝄢 -4𝘃𝘀4 𝗵𝗼𝗿𝗮 𝘆 𝗽𝗮𝗶𝘀
   ৎ٠࣪⭑🎮𝄢 -6𝘃𝘀6 𝗵𝗼𝗿𝗮 𝘆 𝗽𝗮𝗶𝘀
   ৎ٠࣪⭑🎮𝄢 -𝗰𝘂𝗮𝗱𝗿𝗶𝗹𝗮𝘁𝗲𝗿𝗼 𝗵𝗼𝗿𝗮 𝘆 𝗽𝗮𝗶𝘀
-  ৎ٠࣪⭑🎮𝄢  𝗵𝗲𝘅𝗮𝗴𝗼𝗻𝗮𝗹 𝗵𝗼𝗿𝗮 𝘆 𝗽𝗮𝗶𝘀
-  ৎ٠࣪⭑🎮𝄢 -𝗶𝗻𝘁𝗲𝗿𝗻𝗮 𝗵𝗼𝗿𝗮 𝘆 𝗽𝗮𝗶𝘀
+  ৎ٠࣪⭑🎮𝄢 -𝗵𝗲𝘅𝗮𝗴𝗼𝗻𝗮𝗹 𝗵𝗼𝗿𝗮 𝘆 𝗽𝗮𝗶𝘀
+  ৎ٠࣪⭑🎮𝄢 -𝗶𝗻𝗍𝗲𝗿𝗻𝗮 𝗵𝗼𝗿𝗮 𝘆 𝗽𝗮𝗶𝘀
   ৎ٠࣪⭑🎮𝄢 -𝘀𝗰𝗿𝗶𝗺 𝗵𝗼𝗿𝗮 𝘆 𝗽𝗮𝗶𝘀
 
 
@@ -124,6 +124,7 @@ const handler = async (m, { conn }) => {
   ৎ٠࣪⭑🎨𝄢 -qc
   ৎ٠࣪⭑🎨𝄢 -s
 
+
 *𐚁 ֹ ִ *𝖯𝖺𝗋𝖺 𝖾𝗅 𝖼𝗋𝖾𝖺𝖽𝗈𝗋* ୧👑 ֹ ִ*
   ৎ٠࣪⭑👨🏻‍💻𝄢 -𝘁𝗶𝗲𝗺𝗽𝗼 𝗮𝗰𝘁𝗶𝗰𝗼
   ৎ٠࣪⭑👨🏻‍💻𝄢 .𝗼𝗻 𝗮𝗻𝘁𝗶𝗽𝗿𝗶𝘃𝗮𝗱𝗼
@@ -139,20 +140,22 @@ const handler = async (m, { conn }) => {
 `
 
   await conn.sendMessage(m.chat, {
-    react: { text: '🧾', key: m.key }
+    react: { text: "🧾", key: m.key }
   })
 
   await conn.sendMessage(
     m.chat,
     {
-      image: { url: "https://files.catbox.moe/n3eyas.mp4" },
+      video: { url: "https://files.catbox.moe/n3eyas.mp4" },
       caption: menu,
+      gifPlayback: true,
       mentions: [m.sender]
     },
     { quoted: m }
   )
 }
 
-handler.customPrefix = /^\.?(menu|menuall)$/i;
-handler.command = new RegExp;
-export default handler;
+handler.customPrefix = /^\.?(menu|menuall)$/i
+handler.command = new RegExp()
+
+export default handler
